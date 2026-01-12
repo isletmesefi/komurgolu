@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Saha Navigasyon - Kömürgölü</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; background: #0f172a; font-family: 'Satoshi', sans-serif; }
+        
+        #map { height: 100%; width: 100%; background-color: #1e293b; display: none; }
+
+        /* --- PREMIUM GİRİŞ EKRANI TASARIMI --- */
+        #loginScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 0%, #334155 0%, #0f172a 60%, #020617 100%);
+            z-index: 5000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px;
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 40px 30px;
+            border-radius: 22px;
+            width: 100%; max-width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .brand-name { 
+            font-size: 28px; font-weight: 900; color: #ffffff; 
+            margin-bottom: 4px; letter-spacing: -0.5px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .brand-title { 
+            font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.6); 
+            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; 
+        }
+        
+        .brand-slogan { 
+            font-size: 12px; font-weight: 800; color: #ff4747; 
+            margin-bottom: 35px; text-transform: uppercase; letter-spacing: 1.5px;
+            position: relative; display: inline-block;
+        }
+        .brand-slogan::after {
+            content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 2px; background: rgba(255, 71, 71, 0.3); border-radius: 2px;
+        }
+
+        .login-btn {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            width: 100%; padding: 16px; margin-bottom: 14px;
+            border: none; border-radius: 14px; 
+            font-family: 'Satoshi', sans-serif; font-size: 15px; font-weight: 700;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative; overflow: hidden;
+        }
+        .login-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .btn-guest { 
+            background: rgba(255, 255, 255, 0.08); 
+            color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .btn-guest:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+
+        .btn-user { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-user:hover { box-shadow: 0 8px 30px rgba(37, 99, 235, 0.6); transform: translateY(-2px); }
+
+        .btn-admin { 
+            background: rgba(0, 0, 0, 0.6); 
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .btn-admin:hover { background: rgba(0, 0, 0, 0.9); color: white; border-color: rgba(255,255,255,0.2); }
+
+        .version-text {
+            position: absolute; bottom: 20px;
+            font-size: 11px; color: rgba(255,255,255,0.2);
+            font-weight: 500; letter-spacing: 0.5px;
+        }
+
+        /* --- UI ELEMENTS --- */
+        #authModal, .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 6000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .auth-box, .modal-content { background: #1e293b; color: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .auth-input, .modal-content input { width: 100%; padding: 14px; margin-bottom: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 10px; font-size: 16px; outline: none; transition: 0.3s; font-family: 'Satoshi', sans-serif;}
+        .auth-input:focus { border-color: #3b82f6; background: rgba(0,0,0,0.5); }
+        
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-save { background: #2563eb; color: white; flex: 1; padding: 12px; border:none; border-radius:10px; font-weight:bold; cursor:pointer;}
+        .btn-cancel { background: rgba(255,255,255,0.1); color: white; flex: 1; padding: 12px; border:none; border-radius:10px; font-weight:bold; cursor:pointer;}
+        .error-msg { color: #ff4747; font-size: 14px; margin-bottom: 15px; display: none; text-align: center; font-weight: 600; }
+        .btn-delete { background: #ef4444; color: white; flex: 1; padding: 12px; border:none; border-radius:10px; font-weight:bold; cursor:pointer;}
+
+        .search-box { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 220px; padding: 12px 20px; z-index: 1000; border-radius: 30px; border: none; background: rgba(30, 41, 59, 0.9); color: white; backdrop-filter: blur(5px); display: none; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: 'Satoshi', sans-serif; font-size: 14px; }
+        .action-btn { position: absolute; right: 20px; width: 50px; height: 50px; border-radius: 16px; border: none; cursor: pointer; z-index: 1000; box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; padding: 0; color: white; transition: all 0.3s ease; }
+        .action-btn svg { width: 24px; height: 24px; fill: currentColor; pointer-events: none; }
+        
+        #addMarkerBtn { top: 20px; background: #2563eb; }
+        #addMarkerBtn.active { background: #ef4444; }
+        #lockBtn { top: 85px; background: #475569; }
+        #lockBtn.unlocked { background: #ef4444; }
+        #exportBtn { top: 150px; background: #16a34a; }
+        
+        /* Marker Styles */
+        .custom-div-icon { background: transparent; border: none; }
+        .pin-wrapper { position: relative; width: 50px; height: 60px; pointer-events: none; } 
+        .pin-marker { position: absolute; width: 36px; height: 36px; background: #2563eb; border-radius: 50% 50% 50% 0; left: 7px; top: 0; border: 3px solid white; transform: rotate(-45deg); transition: background 0.3s; pointer-events: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .pin-marker::after { content: ''; position: absolute; width: 16px; height: 16px; background: white; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .pin-number { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); color: #1e293b; font-weight: 800; font-size: 14px; background: white; padding: 4px 10px; border-radius: 8px; white-space: nowrap; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .pin-marker.active { background: #ef4444 !important; }
+        .pin-marker.active + .pin-number { background: #ef4444 !important; color: white; top: -38px; }
+        
+        @keyframes bounceAction { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        .bounce-anim { animation: bounceAction 1s infinite ease-in-out; }
+
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background-color: rgba(37, 99, 235, 0.8) !important; }
+        .marker-cluster div { background-color: rgba(37, 99, 235, 0.95) !important; color: white !important; font-weight: 800; }
+        .leaflet-container.crosshair-cursor-enabled { cursor: crosshair; }
+        .map-edit-active { border: 4px solid #ef4444; box-sizing: border-box; }
+        .leaflet-marker-draggable { cursor: move !important; }
+
+        /* Navigation Panel */
+        #bottomNavPanel {
+            position: fixed; bottom: -320px; left: 0; width: 100%;
+            background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px); z-index: 2000;
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 25px; transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        #bottomNavPanel.active { bottom: 0; }
+        
+        .nav-info-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .nav-title { font-size: 20px; font-weight: 800; color: white; }
+        .nav-subtitle { font-size: 14px; color: #94a3b8; }
+        .nav-distance { font-size: 24px; font-weight: 900; color: #3b82f6; text-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        
+        .btn-start-nav {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 16px;
+            border-radius: 14px; font-size: 16px; font-weight: 800; cursor: pointer;
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+        }
+        .btn-stop-nav {
+            background: #f59e0b; color: white; border: none; padding: 16px;
+            border-radius: 14px; font-size: 16px; font-weight: 800; cursor: pointer; width: 100%; display: none; 
+        }
+        .btn-delete-nav {
+            background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 16px;
+            border-radius: 14px; font-size: 16px; font-weight: 800; cursor: pointer; width: 100%; display: none; 
+        }
+
+        .user-location-marker {
+            width: 20px; height: 20px; background: #3b82f6; 
+            border: 3px solid white; border-radius: 50%;
+            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0.3);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+
+        #versionTag { position: absolute; bottom: 5px; left: 5px; color: rgba(255,255,255,0.15); font-size: 10px; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<div id="versionTag">v5.0 - Kömürgölü</div>
+
+<div id="loginScreen">
+    <div class="login-container">
+        <div class="brand-name">MEHMET TALHA IŞIK</div>
+        <div class="brand-title">KÖMÜRGÖLÜ SAHA</div>
+        <div class="brand-slogan">TÜRK MÜHENDİSLİĞİNİN DİJİTAL GÜCÜ</div>
+        
+        <button id="btnGuest" class="login-btn btn-guest">
+            <svg viewBox="0 0 24 24"><path d="M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM6 18c0-2.66 5.33-4 8-4s8 1.34 8 4v2H6v-2z" fill-opacity="0.7"/></svg>
+            Misafir Olarak Devam Et
+        </button>
+        
+        <button id="btnUser" class="login-btn btn-user">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            Kullanıcı Girişi Yap
+        </button>
+        
+        <button id="btnAdmin" class="login-btn btn-admin">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.4 0 2.8 1.1 2.8 2.5V11c.6 0 1.2.6 1.2 1.2v3.5c0 .7-.6 1.3-1.2 1.3H9.2c-.6 0-1.2-.6-1.2-1.2v-3.5c0-.7.6-1.3 1.2-1.2V9.5C9.2 8.1 10.6 7 12 7zm0 1c-.8 0-1.5.7-1.5 1.5V11h3V9.5c0-.8-.7-1.5-1.5-1.5z"/></svg>
+            Yönetici Girişi Yap
+        </button>
+        
+        <div class="version-text">v5.0 — Türk Mühendisliğinin Dijital Gücü</div>
+    </div>
+</div>
+
+<div id="authModal">
+    <div class="auth-box">
+        <h2 id="authTitle" style="margin-bottom:20px; font-weight:800;">Giriş Yap</h2>
+        <input type="text" id="authUsername" class="auth-input" placeholder="Kullanıcı Adı" autocapitalize="none">
+        <input type="password" id="authPassword" class="auth-input" placeholder="Şifre">
+        <div id="authError" class="error-msg">Hatalı kullanıcı adı veya şifre!</div>
+        <div class="modal-buttons">
+            <button id="btnAuthCancel" class="btn-cancel">İptal</button>
+            <button id="btnAuthLogin" class="btn-save">Giriş</button>
+        </div>
+    </div>
+</div>
+
+<input type="text" id="searchInput" class="search-box" placeholder="Numara Ara..." inputmode="numeric" pattern="[0-9]*">
+
+<button id="addMarkerBtn" class="action-btn" title="Yeni Ekle">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+</button>
+<button id="lockBtn" class="action-btn" title="Düzenleme Kilidi" style="display:none;">
+    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+</button>
+<button id="exportBtn" class="action-btn" title="Excel'e Aktar" style="display: none;">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-3H8v3H6V8h2v2h1V8h2v8zm5-1.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-3-3v1.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V11c0-1.66-1.34-3-3-3s-3 1.34-3 3v3h1.5v-3c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v1.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V11h1.5v2.5z"/></svg>
+</button>
+
+<div id="bottomNavPanel">
+    <div class="nav-info-row">
+        <div>
+            <div id="navTargetTitle" class="nav-title">İstif No: --</div>
+            <div class="nav-subtitle">Seçili Hedef</div>
+        </div>
+        <div id="navDistance" class="nav-distance">-- m</div>
+    </div>
+    
+    <button id="btnStartNav" class="btn-start-nav">
+        <svg style="width:24px;height:24px;fill:white" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+        İstife Git (Başlat)
+    </button>
+    <button id="btnStopNav" class="btn-stop-nav">Navigasyonu Bitir</button>
+    <button id="btnPanelDelete" class="btn-delete-nav">Bu İstifi Sil</button>
+</div>
+
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: #3b82f6; margin-bottom:20px; font-weight:800;">İstif Numarası</h2>
+        <input type="text" id="markerNumber" placeholder="Numara girin..." autocomplete="off" inputmode="numeric" pattern="[0-9]*">
+        <div class="modal-buttons">
+            <button class="btn-cancel" id="btnAddCancel">İptal</button>
+            <button class="btn-save" id="btnAddSave">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: #ef4444; margin-bottom:20px; font-weight:800;">İstif Sil</h2>
+        <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">Bu istifi silmek istediğinize emin misiniz?</p>
+        <div class="modal-buttons">
+            <button class="btn-cancel" id="btnDeleteCancel">İptal</button>
+            <button class="btn-delete" id="btnDeleteConfirm">Sil</button>
+        </div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, onChildChanged, onChildRemoved, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    window.onerror = function(msg) { if (msg.includes("maxZoom")) return false; };
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBALVTNtwpBZEB4t8fhb7_I3nZJZzrnJU4",
+        authDomain: "appharita.firebaseapp.com",
+        databaseURL: "https://appharita-default-rtdb.firebaseio.com", 
+        projectId: "appharita",
+        storageBucket: "appharita.firebasestorage.app",
+        messagingSenderId: "825896245452",
+        appId: "1:825896245452:web:15ae33b66df6446d708a69",
+        measurementId: "G-3GS17644DL"
+    };
+
+    let app, db, pointsRef;
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getDatabase(app);
+        
+        // --- BURASI DEĞİŞTİ ---
+        // Eski "points" yerine yeni saha için "komurgolu_saha" adını kullandık.
+        // Bu sayede aynı proje içinde yeni bir temiz sayfa açmış olduk.
+        pointsRef = ref(db, "komurgolu_saha"); 
+        
+    } catch (e) { alert("Firebase Hatası: " + e.message); }
+
+    let userRole = null;
+    let targetRole = null;
+    let isEditMode = false;
+    let lastActiveMarker = null;
+    const markers = {};
+    let addingMarkerMode = false;
+    let tempLatLng = null;
+    let markerToDelete = null;
+
+    let navigationActive = false;
+    let watchId = null;
+    let userMarker = null;
+    let navPolyline = null;
+    let currentTargetLatLng = null;
+
+    document.getElementById('btnGuest').addEventListener('click', () => { userRole = 'guest'; initAppLayout(); });
+    document.getElementById('btnUser').addEventListener('click', () => { openAuthModal('user'); });
+    document.getElementById('btnAdmin').addEventListener('click', () => { openAuthModal('admin'); });
+    document.getElementById('btnAuthCancel').addEventListener('click', () => { document.getElementById('authModal').style.display = 'none'; });
+    document.getElementById('btnAuthLogin').addEventListener('click', attemptLogin);
+
+    function openAuthModal(role) {
+        targetRole = role;
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('authTitle').innerText = role === 'admin' ? 'Yönetici Girişi' : 'Kullanıcı Girişi';
+        document.getElementById('authError').style.display = 'none';
+        document.getElementById('authUsername').value = '';
+        document.getElementById('authPassword').value = '';
+        document.getElementById('authUsername').focus();
+    }
+
+    function attemptLogin() {
+        const u = document.getElementById('authUsername').value.trim();
+        const p = document.getElementById('authPassword').value.trim();
+        if (targetRole === 'user' && u === 'depo' && p === '1234') { userRole = 'user'; initAppLayout(); }
+        else if (targetRole === 'admin' && u === 'admin' && p === '1940') { userRole = 'admin'; initAppLayout(); }
+        else { document.getElementById('authError').style.display = 'block'; }
+    }
+
+    function initAppLayout() {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('authModal').style.display = 'none';
+        document.getElementById('map').style.display = 'block';
+        document.getElementById('searchInput').style.display = 'block';
+        setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds); }, 300);
+
+        const addBtn = document.getElementById('addMarkerBtn');
+        const lockBtn = document.getElementById('lockBtn');
+        const exportBtn = document.getElementById('exportBtn');
+
+        if (userRole === 'guest') { 
+            addBtn.style.display = 'none'; lockBtn.style.display = 'none'; exportBtn.style.display = 'none';
+        } else { 
+            addBtn.style.display = 'flex'; lockBtn.style.display = 'flex'; exportBtn.style.display = 'flex';
+        }
+    }
+
+    // --- KOORDİNATLAR GÜNCELLENDİ (Kömürgölü Saha) ---
+    // Sol Alt Köşe
+    const southWest = L.latLng(41.814837, 34.554315);
+    // Sağ Üst Köşe
+    const northEast = L.latLng(41.968600, 34.814494);
+    
+    const bounds = L.latLngBounds(southWest, northEast);
+    
+    const map = L.map('map', { 
+        center: bounds.getCenter(), 
+        zoom: 14, // Saha büyük olduğu için zoom seviyesini biraz düşürdüm
+        minZoom: 10, 
+        maxZoom: 22,
+        zoomControl: false 
+    });
+    map.options.maxZoom = 22;
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    
+    // GÖRSELİN ADI YİNE 'harita.jpg' OLARAK KALDI
+    const overlay = L.imageOverlay('harita.jpg', bounds).addTo(map);
+    map.fitBounds(bounds);
+
+    const markersCluster = L.markerClusterGroup({ disableClusteringAtZoom: 19, spiderfyOnMaxZoom: true, showCoverageOnHover: false });
+    map.addLayer(markersCluster);
+
+    function createNumberIcon(num) {
+        return L.divIcon({
+            className: "custom-div-icon",
+            html: `<div class="pin-wrapper"><div class="pin-marker" data-pin="${num}"></div><div class="pin-number">${num}</div></div>`,
+            iconSize: [50, 60], iconAnchor: [25, 60]
+        });
+    }
+
+    window.triggerDeleteGlobal = function(key) {
+        markerToDelete = { key: key, marker: markers[key] };
+        document.getElementById("deleteModal").classList.add("show");
+    };
+
+    function createMarker(key, d) {
+        if(!d.lat || !d.lng) return null;
+        
+        const marker = L.marker([d.lat, d.lng], { 
+            icon: createNumberIcon(d.title || "?"), 
+            draggable: isEditMode 
+        });
+        marker.myTitle = d.title; marker.firebaseKey = key;
+
+        marker.on('dragend', function(e) {
+            const newPos = marker.getLatLng();
+            // Firebase Reference da güncellendiği için burası da otomatik 'komurgolu_saha'ya yazar
+            update(ref(db, "komurgolu_saha/" + key), { lat: newPos.lat, lng: newPos.lng })
+                .catch(() => marker.setLatLng([d.lat, d.lng]));
+        });
+
+        marker.on('click', (e) => {
+            if(marker.dragging && marker.dragging.enabled() && marker._isDragging) return;
+            L.DomEvent.stopPropagation(e);
+            
+            if (!addingMarkerMode) {
+                if (lastActiveMarker) {
+                    const el = lastActiveMarker.getElement();
+                    if(el) { 
+                        el.querySelector('.pin-marker')?.classList.remove('active'); 
+                        el.querySelector('.pin-number')?.classList.remove('active'); 
+                        el.querySelector('.pin-wrapper')?.classList.remove('bounce-anim'); 
+                    }
+                }
+                
+                const el = marker.getElement();
+                if(el) { 
+                    el.querySelector('.pin-marker')?.classList.add('active'); 
+                    el.querySelector('.pin-number')?.classList.add('active'); 
+                    el.querySelector('.pin-wrapper')?.classList.add('bounce-anim'); 
+                }
+                lastActiveMarker = marker; 
+                
+                map.setView(marker.getLatLng(), map.getZoom());
+
+                document.getElementById('navTargetTitle').innerText = "İstif No: " + d.title;
+                document.getElementById('navDistance').innerText = "-- m";
+                document.getElementById('bottomNavPanel').classList.add('active');
+                
+                currentTargetLatLng = marker.getLatLng();
+
+                if(navigationActive) {
+                    document.getElementById('btnStartNav').style.display = 'none';
+                    document.getElementById('btnStopNav').style.display = 'block';
+                } else {
+                    document.getElementById('btnStartNav').style.display = 'flex';
+                    document.getElementById('btnStopNav').style.display = 'none';
+                }
+
+                const deleteBtn = document.getElementById('btnPanelDelete');
+                if (isEditMode) {
+                    deleteBtn.style.display = 'block';
+                    deleteBtn.onclick = function() { window.triggerDeleteGlobal(key); };
+                } else {
+                    deleteBtn.style.display = 'none';
+                }
+            }
+        });
+        return marker;
+    }
+
+    document.getElementById('btnStartNav').addEventListener('click', () => {
+        if(!currentTargetLatLng) return;
+
+        if (navigator.geolocation) {
+            navigationActive = true;
+            document.getElementById('btnStartNav').style.display = 'none';
+            document.getElementById('btnStopNav').style.display = 'block';
+
+            if(navPolyline) { map.removeLayer(navPolyline); }
+            
+            watchId = navigator.geolocation.watchPosition(updateUserLocation, locationError, {
+                enableHighAccuracy: true,
+                maximumAge: 1000,
+                timeout: 10000
+            });
+
+        } else {
+            alert("Tarayıcınız konum servisini desteklemiyor.");
+        }
+    });
+
+    document.getElementById('btnStopNav').addEventListener('click', stopNavigation);
+
+    function stopNavigation() {
+        navigationActive = false;
+        if(watchId) navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        if(navPolyline) { map.removeLayer(navPolyline); navPolyline = null; }
+        if(userMarker) { map.removeLayer(userMarker); userMarker = null; }
+
+        document.getElementById('btnStartNav').style.display = 'flex';
+        document.getElementById('btnStopNav').style.display = 'none';
+        document.getElementById('navDistance').innerText = "-- m";
+        
+        if (lastActiveMarker) {
+             const el = lastActiveMarker.getElement();
+             if(el) { 
+                 el.querySelector('.pin-marker')?.classList.remove('active'); 
+                 el.querySelector('.pin-number')?.classList.remove('active'); 
+                 el.querySelector('.pin-wrapper')?.classList.remove('bounce-anim');
+             }
+             lastActiveMarker = null;
+        }
+        document.getElementById('bottomNavPanel').classList.remove('active');
+    }
+
+    function updateUserLocation(position) {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        const userLatLng = L.latLng(userLat, userLng);
+
+        if (!userMarker) {
+            const userIcon = L.divIcon({ className: 'user-location-marker', iconSize: [20, 20], iconAnchor: [10, 10] });
+            userMarker = L.marker(userLatLng, {icon: userIcon}).addTo(map);
+        } else {
+            userMarker.setLatLng(userLatLng);
+        }
+
+        if (navigationActive && currentTargetLatLng) {
+            const distance = map.distance(userLatLng, currentTargetLatLng);
+            document.getElementById('navDistance').innerText = Math.round(distance) + " m";
+
+            if (navPolyline) {
+                navPolyline.setLatLngs([userLatLng, currentTargetLatLng]);
+            } else {
+                navPolyline = L.polyline([userLatLng, currentTargetLatLng], {
+                    color: '#3b82f6',
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '10, 10'
+                }).addTo(map);
+            }
+        }
+    }
+
+    function locationError(err) {
+        console.warn('GPS Hatası:', err.code, err.message);
+    }
+
+    map.on('click', (e) => {
+        if(!addingMarkerMode && !navigationActive) {
+            document.getElementById('bottomNavPanel').classList.remove('active');
+            if (lastActiveMarker) {
+                 const el = lastActiveMarker.getElement();
+                 if(el) { 
+                     el.querySelector('.pin-marker')?.classList.remove('active'); 
+                     el.querySelector('.pin-number')?.classList.remove('active'); 
+                     el.querySelector('.pin-wrapper')?.classList.remove('bounce-anim'); 
+                 }
+                 lastActiveMarker = null;
+            }
+        }
+        if (addingMarkerMode) {
+            tempLatLng = e.latlng;
+            document.getElementById("addModal").classList.add("show");
+            document.getElementById("markerNumber").value = "";
+            document.getElementById("markerNumber").focus();
+        }
+    });
+
+    onChildAdded(pointsRef, (snap) => {
+        if (markers[snap.key]) return; 
+        const marker = createMarker(snap.key, snap.val());
+        if(marker) { markers[snap.key] = marker; markersCluster.addLayer(marker); }
+    });
+
+    onChildChanged(pointsRef, (snap) => {
+        const marker = markers[snap.key];
+        if (marker) {
+            const d = snap.val();
+            marker.setLatLng([d.lat, d.lng]);
+            marker.setIcon(createNumberIcon(d.title));
+            marker.myTitle = d.title;
+        }
+    });
+
+    onChildRemoved(pointsRef, (snap) => {
+        const marker = markers[snap.key];
+        if (marker) { markersCluster.removeLayer(marker); delete markers[snap.key]; }
+    });
+
+    const addMarkerBtn = document.getElementById("addMarkerBtn");
+    addMarkerBtn.addEventListener("click", () => {
+        addingMarkerMode = !addingMarkerMode;
+        if (addingMarkerMode) {
+            addMarkerBtn.classList.add("active"); 
+            addMarkerBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+            map.getContainer().classList.add("crosshair-cursor-enabled");
+            document.getElementById('bottomNavPanel').classList.remove('active');
+            
+            if (lastActiveMarker) {
+                 const el = lastActiveMarker.getElement();
+                 if(el) { 
+                     el.querySelector('.pin-marker')?.classList.remove('active'); 
+                     el.querySelector('.pin-number')?.classList.remove('active'); 
+                     el.querySelector('.pin-wrapper')?.classList.remove('bounce-anim');
+                 }
+                 lastActiveMarker = null;
+            }
+
+        } else {
+            addMarkerBtn.classList.remove("active"); 
+            addMarkerBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+            map.getContainer().classList.remove("crosshair-cursor-enabled");
+        }
+    });
+
+    document.getElementById("btnAddSave").addEventListener("click", () => {
+        const val = document.getElementById("markerNumber").value.trim();
+        if (val && tempLatLng) {
+            push(pointsRef, { lat: tempLatLng.lat, lng: tempLatLng.lng, title: val });
+            document.getElementById("addModal").classList.remove("show");
+            tempLatLng = null; addingMarkerMode = false;
+            addMarkerBtn.classList.remove("active"); 
+            addMarkerBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+            map.getContainer().classList.remove("crosshair-cursor-enabled");
+        }
+    });
+    document.getElementById("btnAddCancel").addEventListener("click", () => { document.getElementById("addModal").classList.remove("show"); tempLatLng = null; });
+    document.getElementById("btnDeleteConfirm").addEventListener("click", () => { 
+        if (markerToDelete) { 
+            // Silme işlemi de yeni veritabanı yoluna göre ayarlandı
+            remove(ref(db, `komurgolu_saha/${markerToDelete.key}`)); 
+            document.getElementById("deleteModal").classList.remove("show"); 
+            markerToDelete = null; 
+            document.getElementById('bottomNavPanel').classList.remove('active'); 
+        } 
+    });
+    document.getElementById("btnDeleteCancel").addEventListener("click", () => { document.getElementById("deleteModal").classList.remove("show"); markerToDelete = null; });
+
+    document.getElementById('lockBtn').addEventListener('click', () => {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('lockBtn');
+        btn.classList.toggle('unlocked', isEditMode);
+        document.getElementById('map').classList.toggle('map-edit-active', isEditMode);
+        btn.innerHTML = isEditMode ? '<svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>';
+        
+        for (const key in markers) {
+            const marker = markers[key];
+            if (isEditMode) marker.dragging.enable(); else marker.dragging.disable();
+        }
+        
+        const deleteBtn = document.getElementById('btnPanelDelete');
+        if (deleteBtn) {
+             deleteBtn.style.display = isEditMode ? 'block' : 'none';
+        }
+    });
+
+    document.getElementById("searchInput").addEventListener("input", (e) => {
+        const val = e.target.value.trim();
+        if(val === "") return;
+        for (let key in markers) {
+            if (markers[key].myTitle == val) {
+                markersCluster.zoomToShowLayer(markers[key], function() { markers[key].fire('click'); });
+                break;
+            }
+        }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+        const snap = await get(pointsRef);
+        let csv = "ID;No;Lat;Lng\n";
+        snap.forEach(c => { const v=c.val(); csv+=`${c.key};${v.title};${v.lat};${v.lng}\n`; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Kömürgölü_Data.csv`;
+        link.click();
+    });
+</script>
+</body>
+</html>
