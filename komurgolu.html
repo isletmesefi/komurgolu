@@ -17,7 +17,7 @@
         
         #map { height: 100%; width: 100%; background-color: #1e293b; display: none; }
 
-        /* --- PREMIUM GİRİŞ EKRANI TASARIMI --- */
+        /* --- GİRİŞ EKRANI --- */
         #loginScreen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at 50% 0%, #334155 0%, #0f172a 60%, #020617 100%);
@@ -99,7 +99,7 @@
             font-weight: 500; letter-spacing: 0.5px;
         }
 
-        /* --- UI ELEMENTS --- */
+        /* --- DİĞER UI ELEMANLARI --- */
         #authModal, .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 6000; align-items: center; justify-content: center; }
         .modal.show { display: flex; }
         .auth-box, .modal-content { background: #1e293b; color: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 350px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
@@ -140,7 +140,7 @@
         .map-edit-active { border: 4px solid #ef4444; box-sizing: border-box; }
         .leaflet-marker-draggable { cursor: move !important; }
 
-        /* Navigation Panel */
+        /* Nav Panel */
         #bottomNavPanel {
             position: fixed; bottom: -320px; left: 0; width: 100%;
             background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(10px); z-index: 2000;
@@ -184,7 +184,7 @@
 </head>
 <body>
 
-<div id="versionTag">v5.0 - Kömürgölü</div>
+<div id="versionTag">v5.1 - Kömürgölü</div>
 
 <div id="loginScreen">
     <div class="login-container">
@@ -207,7 +207,7 @@
             Yönetici Girişi Yap
         </button>
         
-        <div class="version-text">v5.0 — Türk Mühendisliğinin Dijital Gücü</div>
+        <div class="version-text">v5.1 — Türk Mühendisliğinin Dijital Gücü</div>
     </div>
 </div>
 
@@ -286,15 +286,16 @@
 
     window.onerror = function(msg) { if (msg.includes("maxZoom")) return false; };
 
+    // --- YENİ PROJE AYARLARI GÜNCELLENDİ (Komurgolu-Saha) ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBALVTNtwpBZEB4t8fhb7_I3nZJZzrnJU4",
-        authDomain: "appharita.firebaseapp.com",
-        databaseURL: "https://appharita-default-rtdb.firebaseio.com", 
-        projectId: "appharita",
-        storageBucket: "appharita.firebasestorage.app",
-        messagingSenderId: "825896245452",
-        appId: "1:825896245452:web:15ae33b66df6446d708a69",
-        measurementId: "G-3GS17644DL"
+        apiKey: "AIzaSyAfZfqdYu12TIVlKCKyUzMGwbYz8wlFANk",
+        authDomain: "komurgolu-dd131.firebaseapp.com",
+        databaseURL: "https://komurgolu-dd131-default-rtdb.europe-west1.firebasedatabase.app", // Link buraya eklendi!
+        projectId: "komurgolu-dd131",
+        storageBucket: "komurgolu-dd131.firebasestorage.app",
+        messagingSenderId: "440933580974",
+        appId: "1:440933580974:web:c2f0b1e340c8a5a93a6d3f",
+        measurementId: "G-L732Z1PFYP"
     };
 
     let app, db, pointsRef;
@@ -302,9 +303,7 @@
         app = initializeApp(firebaseConfig);
         db = getDatabase(app);
         
-        // --- BURASI DEĞİŞTİ ---
-        // Eski "points" yerine yeni saha için "komurgolu_saha" adını kullandık.
-        // Bu sayede aynı proje içinde yeni bir temiz sayfa açmış olduk.
+        // Yeni proje olduğu için, veriler "komurgolu_saha" başlığı altında toplanacak.
         pointsRef = ref(db, "komurgolu_saha"); 
         
     } catch (e) { alert("Firebase Hatası: " + e.message); }
@@ -366,17 +365,15 @@
         }
     }
 
-    // --- KOORDİNATLAR GÜNCELLENDİ (Kömürgölü Saha) ---
-    // Sol Alt Köşe
+    // --- KÖMÜRGÖLÜ SAHA KOORDİNATLARI ---
     const southWest = L.latLng(41.814837, 34.554315);
-    // Sağ Üst Köşe
     const northEast = L.latLng(41.968600, 34.814494);
     
     const bounds = L.latLngBounds(southWest, northEast);
     
     const map = L.map('map', { 
         center: bounds.getCenter(), 
-        zoom: 14, // Saha büyük olduğu için zoom seviyesini biraz düşürdüm
+        zoom: 14, 
         minZoom: 10, 
         maxZoom: 22,
         zoomControl: false 
@@ -384,8 +381,6 @@
     map.options.maxZoom = 22;
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    
-    // GÖRSELİN ADI YİNE 'harita.jpg' OLARAK KALDI
     const overlay = L.imageOverlay('harita.jpg', bounds).addTo(map);
     map.fitBounds(bounds);
 
@@ -416,7 +411,6 @@
 
         marker.on('dragend', function(e) {
             const newPos = marker.getLatLng();
-            // Firebase Reference da güncellendiği için burası da otomatik 'komurgolu_saha'ya yazar
             update(ref(db, "komurgolu_saha/" + key), { lat: newPos.lat, lng: newPos.lng })
                 .catch(() => marker.setLatLng([d.lat, d.lng]));
         });
@@ -632,7 +626,6 @@
     document.getElementById("btnAddCancel").addEventListener("click", () => { document.getElementById("addModal").classList.remove("show"); tempLatLng = null; });
     document.getElementById("btnDeleteConfirm").addEventListener("click", () => { 
         if (markerToDelete) { 
-            // Silme işlemi de yeni veritabanı yoluna göre ayarlandı
             remove(ref(db, `komurgolu_saha/${markerToDelete.key}`)); 
             document.getElementById("deleteModal").classList.remove("show"); 
             markerToDelete = null; 
@@ -677,7 +670,7 @@
         const blob = new Blob([csv], { type: 'text/csv' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `Kömürgölü_Data.csv`;
+        link.download = `Komurgolu_Data.csv`;
         link.click();
     });
 </script>
